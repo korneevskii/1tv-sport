@@ -21,6 +21,7 @@ function calendarInit() {
     let additionalClasses = '';
     let selectedDate = calendarContainer.querySelector('.selected-date');   
     let selectedDateCode = '';
+    //формируем календарь, добавляем классы для визуализации в зависимости от дня недели и текущей даты
     for (i=1; i <= lastDay; i++) {         
         if (dayCounter >= dayArray.length )  {
             dayCounter = 0;
@@ -54,7 +55,7 @@ function carouselInit() {
     let carouselItems = carouselContainer.querySelectorAll('.translations_main-block-calendar-carousel-item');  
     let carouselWidth = carousel.offsetWidth; 
     let count = Math.round(carouselWidth / width);
-    let activeItem = carouselContainer.querySelector('.current-active');
+    let activeItem = carouselContainer.querySelector('.current-active'); //текущая дата в календаре
     let idOfActiveItem = 0;
     carouselContainer.querySelector('.carousel-back').onclick = function() {
       position += width;
@@ -66,6 +67,7 @@ function carouselInit() {
       position = Math.max(-width * (carouselItems.length - count), position);
       carousel.style.marginLeft = position + 'px';
     };
+    //вычисляем необходимое количество элементов и сдвигаем календарь, чтобы текущая дата всегда попадала в зону видимости
     for (i=0; i < carouselItems.length; i++) {   
         if (carouselItems[i] == activeItem ) {
             idOfActiveItem = i;
@@ -79,8 +81,10 @@ function carouselInit() {
 function dateInit() {
     let currentDate = new Date();  
     let currentYear = currentDate.getFullYear(); 
+    let currentMonth = currentDate.getMonth();    
     let currentDay = currentDate.getDate();              
     let calendarContainer = document.getElementsByClassName("translations_main-block-calendar")[0]; 
+    let calendarContainerContent = document.getElementsByClassName("translations_main-block-calendar-content")[0];     
     let selectedDate = calendarContainer.querySelector('.selected-date');   
     let selectedDateCode = '';
     let today = '';
@@ -110,17 +114,116 @@ function dateInit() {
             day = 'субботу';
             break;                                                            
     }
+    //если выбранная дата совпадает с текущей, добавляем слово "сегодня"
     if ( date == currentDay ) {
         today = 'сегодня, ';
     }
+    //формируем строку заголовка виджета
     selectedDateCode += today + day + ', '+ date + '&nbsp;' + month + ' ' + currentYear +' года';
     selectedDate.innerHTML = selectedDateCode;    
+    
+    //убираем пункты расписания мероприятий
+    let calendarItems = document.querySelectorAll('.translations_main-block-calendar-item');
+    for (var i = 0; i < calendarItems.length; i++ ) {           
+        calendarItems[i].parentNode.removeChild(calendarItems[i]);
+    }
+
+    //собираем дату выбранного элемента
+    let selectedDateString = date + "." + (currentMonth+1) + "." + currentYear;
+
+//закомментированные строки относятся к AJAX-запросу
+//   let jsonPath = "./js/timetable.json";   
+//   let xhr = new XMLHttpRequest();
+//   xhr.open('GET', jsonPath, true);
+
+//   xhr.onreadystatechange = function () {
+//        if(xhr.readyState !== 4){ return;}
+//        if(xhr.status !== 200){
+//            console.log('Error', xhr.status, xhr.statusText);
+//        } else {
+//            let result = JSON.parse(xhr.responseText);
+
+            //AJAX запрос заменен на массив timetable из файла timetable.js
+            let result = timetable;        
+
+            //сравниваем даты с массивом и ищем выбранную
+            for (var i = 0; i < result.length; i++ ) {  
+                if (selectedDateString == result[i].date) {
+
+                    let requiredSubject = result[i].subject;    
+                    let requiredSubjectCode = '';
+    
+                    //получаем, разбираем и выводим все доступные для данной даты мероприятия
+                    for (var j = 0; j < requiredSubject.length; j++ ) { 
+                        
+                        let time = requiredSubject[j].time; 
+                        let title = requiredSubject[j].title;
+                        let href = requiredSubject[j].href;                        
+                        let text = requiredSubject[j].text;  
+                        let commentators = requiredSubject[j].commentators;  
+                        let commentatorsCode = '';                                                                                                                          
+                        let medals = requiredSubject[j].medals; 
+                        let rf = requiredSubject[j].rf;                         
+                        let tv = requiredSubject[j].tv; 
+                        let iconsCode = '';  
+                        let onAirClass = ''; 
+                        let onAirCode = '';    
+                        let startTime = time.split(':');                                               
+
+                        //делаем иммитацию проверки на эфир, если выбран текущий день и текущее время попадает в интервал +2 часа от начала мероприятия, то добавляем кнопки "в эфире"
+                        if ( ( date == currentDay ) && ( ( (currentDate.getHours() == +startTime[0]) && (currentDate.getMinutes() >= +startTime[1]) ) || ( (currentDate.getHours() > +startTime[0]) && (currentDate.getHours() < +startTime[0]+2) ) || ( (currentDate.getHours() == +startTime[0]+2) && (currentDate.getMinutes() <= +startTime[1]) ) ) ) {
+                            console.log(+startTime[0]+1);
+                            console.log(currentDate.getHours());
+                            onAirClass = ' item-on-air';
+                            onAirCode = '<div class="translations_main-block-calendar-buttons"><a href="#"><span class="white-player-icon">Смотреть</span></a><span class="on-air">Сейчас в эфире</span></div>';
+                        }
+
+                        requiredSubjectCode += '<div class="translations_main-block-calendar-item' + onAirClass + '"><div class="translations_main-block-calendar-link"><span class="translations_main-block-calendar-sublink"><span class="translations_main-block-calendar-date">' + time + '</span><a href="' + href + '">' + title + '</a></span><span class="translations_main-block-calendar-icons">';
+
+                        //добавляем нужные иконки
+                        if (medals == true) {
+                            iconsCode += '<span class="medals"></span>';
+                        }
+                        if (rf == true) {
+                            iconsCode += '<span class="flag-rf"></span>';
+                        }
+
+                        if (tv == true) {
+                            iconsCode += '<span class="tv-1tv"></span>';
+                        }
+                        
+                        requiredSubjectCode += iconsCode + '</span></div><p>' + text + '</p><div class="translations_main-block-calendar-commentator">';
+
+                        //получаем список комментаторов, а также ссылки на их страницы
+                        for (var k = 0; k < commentators.length; k++ ) { 
+                            commentatorsCode += '<a href="' + commentators[k].commentatorHref + '">'+ commentators[k].commentatorName +'</a>, ';
+                        }
+                        
+                        //убираем последнюю ненужную запятую после последнего комментатора
+                        commentatorsCode = commentatorsCode.replace(/\,\s$/ig, ''); 
+
+                        requiredSubjectCode += commentatorsCode + '</div>' + onAirCode + '</div>';
+
+                    }
+
+                    calendarContainerContent.innerHTML += requiredSubjectCode;
+
+                }
+            }
+
+//закомментированные строки относятся к AJAX-запросу
+//        }
+//   };
+ 
+//   xhr.send();     
+    
 }
 
 document.addEventListener("DOMContentLoaded", function() { 
     calendarInit();
     carouselInit();
-    let clickCounter = 0;    
+    let clickCounter = 0;  
+    let currentDate = new Date();      
     document.querySelector('.broadcasting_more-button').onclick = function(event) {       
         clickCounter++;
         console.log(clickCounter);
@@ -149,6 +252,7 @@ document.addEventListener("DOMContentLoaded", function() {
     for (var i = 0; i < elementsForClick.length; i++) {
         elementsForClick[i].onclick = dateInit;
     }
+    elementsForClick[currentDate.getDate()-1].click();
 });
 
 
